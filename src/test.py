@@ -1,26 +1,23 @@
-from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
+from sb3_contrib import RecurrentPPO
 from environment import BitcoinTradingEnv
+from stable_baselines3.sac import SAC
 import pandas as pd
 
-data = pd.read_csv('./data/btc_data.csv')
-data_daily = data.resample('D').mean()
-data_hourly = data.resample('H').mean()
+data = pd.read_csv('../data/btc_data.csv')
 
-TRAIN_SPLIT = int(0.8 * len(data_daily))
+TRAIN_SPLIT = int(0.8 * len(data))
 
-test_data_daily = data_daily[TRAIN_SPLIT:]
-test_data_hourly = data_hourly[TRAIN_SPLIT * 24:]
+test_data_daily = data[TRAIN_SPLIT:]
 
-env = DummyVecEnv([lambda: BitcoinTradingEnv(test_data_hourly)])
+env = BitcoinTradingEnv(test_data_daily)
 
-model = PPO.load('./checkpoints/model.zip')
+model = SAC.load('../checkpoints/model.zip')
 
 # Evaluate the model
-obs = env.reset()
-for _ in range(len(env.envs[0].df) - env.envs[0].look_back_window):
+obs, info = env.reset()
+for _ in range(len(env.df) - env.look_back_window):
     action, _states = model.predict(obs)
-    obs, rewards, done, info = env.step(action)
+    obs, rewards, done, truncated, info = env.step(action)
     if done:
         break
 
